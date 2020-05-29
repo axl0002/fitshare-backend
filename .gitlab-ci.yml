@@ -5,7 +5,7 @@ production:
   stage: deploy
   script:
   - apt-get update -qy
-  - apt-get install -y ruby-dev git
+  - apt-get install -y ruby-dev git curl
   - gem install dpl
   - dpl --provider=heroku --app=fitshare-backend --api-key=$HEROKU_PRODUCTION_API_KEY
   only:
