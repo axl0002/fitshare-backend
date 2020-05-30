@@ -16,4 +16,4 @@ def get_all_users():
     cur.execute("SELECT * FROM USERS;")
     res = cur.fetchall()
     cur.close()
-    return res
+    return str(res)
