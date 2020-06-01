@@ -13,3 +13,7 @@ def get_all_users():
     res = cur.fetchall()
     cur.close()
     return str(res)
+
+@application.route('/user', methods=["POST"])
+def new_user():
+    print(request.get_json())
