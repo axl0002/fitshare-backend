@@ -17,3 +17,12 @@ def get_all_users():
     res = cur.fetchall()
     cur.close()
     return str(res)
+
+
+@application.route('/friends/<userid>')
+def get_friends(userid):
+    cur = db_conn.cursor()
+    cur.execute("SELECT targetid FROM friends WHERE (sourceid =" + userid + ");")
+    res = cur.fetchall()
+    cur.close()
+    return str(res)
