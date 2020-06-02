@@ -1,8 +1,7 @@
 from flask import Flask, request
 import psycopg2
 import os
-import json
-# from flask import jsonify
+from flask import jsonify
 
 application = Flask(__name__)
 db_conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
@@ -22,8 +21,8 @@ def get_friends(userid):
     cur.execute("SELECT targetid FROM friends WHERE (sourceid =" + userid + ");")
     res = cur.fetchall()
     cur.close()
-    return json.dumps(res)
-    
+    return jsonify(res)
+
 @application.route('/user', methods=["POST"])
 def new_user():
     print(request.get_json())
