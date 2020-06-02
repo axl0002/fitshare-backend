@@ -32,7 +32,7 @@ def new_user():
     cur = db_conn.cursor()
     cur.execute("INSERT INTO appuser VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
                 (user_data["id"], user_data["email"], user_data["name"]))
-    conn.commit()
+    db_conn.commit()
     cur.close()
 
     return Response(status=200)
