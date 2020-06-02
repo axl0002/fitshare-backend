@@ -1,9 +1,7 @@
-from flask import Flask, request
+from flask import Flask, request, Response
 import psycopg2
 import os
 from flask import jsonify
-import json
-import http
 
 application = Flask(__name__)
 db_conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
@@ -34,6 +32,7 @@ def new_user():
     cur = db_conn.cursor()
     cur.execute("INSERT INTO appuser VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
                 (user_data["id"], user_data["email"], user_data["name"]))
+    conn.commit()
     cur.close()
 
-    return http.HTTPStatus.NO_CONTENT
+    return Response(status=200)
