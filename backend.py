@@ -19,7 +19,7 @@ def get_all_users():
 @application.route('/friends/<userid>')
 def get_friends(userid):
     cur = db_conn.cursor()
-    cur.execute("SELECT targetid FROM friends WHERE (sourceid = %s);", (userid,) )
+    cur.execute("SELECT name FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s));", (userid,) )
     res = cur.fetchall()
     cur.close()
     return jsonify(res)
