@@ -19,10 +19,10 @@ def init():
     return boto3.client('s3')
 
 
-def upload_file(filename, key):
+def upload_file_obj(file_obj, key):
     s3_client = init()
     try:
-        s3_client.upload_file(filename, AWS_BUCKET_NAME, key)
+        s3_client.upload_fileobj(file_obj, AWS_BUCKET_NAME, key)
     except ClientError as e:
         logging.error(e)
         return False
