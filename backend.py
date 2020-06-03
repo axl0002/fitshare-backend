@@ -27,7 +27,7 @@ def get_friends(userid):
     return jsonify(res)
 
 @application.route('/add', methods=["POST"])
-def add_friends(sourceid, targetid):
+def add_friends():
     sourceid = request.get_json()["source_id"]
     targetemail = request.get_json()["target_email"]
 
