@@ -28,7 +28,7 @@ def get_friends(userid):
     ids = [item[0] for item in cur.fetchall()]
 
     cur.close()
-    return str(create_dict(names, ids))
+    return jsonify(create_dict(names, ids))
 
 def create_dict(names, ids):
     lists = []
