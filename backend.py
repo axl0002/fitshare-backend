@@ -33,22 +33,28 @@ def create_dict(names, ids):
     return lists
 
 
-
 @application.route('/add', methods=["POST"])
 def add_friends():
     sourceid = request.get_json()["source_id"]
     targetemail = request.get_json()["target_email"]
 
     cur = db_conn.cursor()
-    cur.execute("SELECT userid FROM appuser WHERE (email = %s)", targetemail)
-    targetid = cur.fetchall()
-    cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid))
-    cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid, sourceid))
 
-    db_conn.commit()
-    cur.close()
+    cur.execute("SELECT count(*) FROM appuser WHERE (email = '%')", (targetemail))
+    count = [item[0] for item in cur.fetchall()]
 
-    return Response(status=201)
+    if (count[0] != 1):
+        return Response(status=400)
+    else:
+        cur.execute("SELECT userid FROM appuser WHERE (email = %s)", targetemail)
+        targetid = cur.fetchall()
+        cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid))
+        cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid, sourceid))
+
+        db_conn.commit()
+        cur.close()
+
+        return Response(status=201)
 
 
 @application.route('/user', methods=["POST"])
