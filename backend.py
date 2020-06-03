@@ -2,7 +2,7 @@ from flask import Flask, request, Response
 import psycopg2
 import os
 from flask import jsonify
-from datetime import datetime
+import json
 import s3
 
 application = Flask(__name__)
@@ -42,27 +42,32 @@ def new_user():
 
 @application.route('/send', methods=["POST"])
 def send():
-    json = request.get_json()
-    user_id = json["user_id"]
-    targets_ids = json["targets_ids"]
-    metadata = json["metadata"]
-    print(json)
-
-    # TODO: pass file and save it to storage
-
     cur = db_conn.cursor()
+    cur.execute("SELECT s3_key FROM friend_challenges ORDER BY s3_key DESC LIMIT 1")
+    table_key = cur.fetchone()
+    print(table_key)
+    if table_key is None:
+        key = 0
+    else:
+        key = table_key + 1
+    print(key)
+
+    file = request.files["file"]
+    s3.upload_file_obj(file, str(key))
+
+    d = json.loads(request.form['json'])
+    user_id = d["user_id"]
+    targets_ids = d["targets_ids"]
+    metadata = d["metadata"]
+
     cur.execute("SELECT friendsid FROM friends WHERE sourceid = %s AND targetid IN %s",
                 (user_id, tuple(targets_ids))
                 )
     friends_ids = cur.fetchall()
-    print(friends_ids)
     for friends_id in friends_ids:
-        dt = datetime.now()
-        cur.execute("INSERT INTO friend_challenges (metadata, friendsid, is_complete)"
-                    " VALUES (%s, %s, %s) RETURNING challengeid",
-                    (metadata, friends_id[0], False))
-        challenge_id = cur.fetchone()[0]
-        print(challenge_id)
+        cur.execute("INSERT INTO friend_challenges (metadata, friendsid, is_complete, s3_key)"
+                    " VALUES (%s, %s, %s, %s)",
+                    (metadata, friends_id[0], False, key))
         db_conn.commit()
     cur.close()
     return Response(status=201)
