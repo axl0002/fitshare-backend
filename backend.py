@@ -49,7 +49,7 @@ def send():
     if table_key is None:
         key = 0
     else:
-        key = table_key + 1
+        key = table_key[0] + 1
     print(key)
 
     file = request.files["file"]
