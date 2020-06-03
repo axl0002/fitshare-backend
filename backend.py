@@ -21,10 +21,26 @@ def get_all_users():
 @application.route('/friends/<userid>')
 def get_friends(userid):
     cur = db_conn.cursor()
-    cur.execute("SELECT name FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s));", (userid,) )
+    cur.execute("SELECT name FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s))", (userid,) )
     res = cur.fetchall()
     cur.close()
     return jsonify(res)
+
+@application.route('/add', methods=["POST"])
+def add_friends(sourceid, targetid):
+    sourceid = request.get_json()["source_id"]
+    targetemail = request.get_json()["target_email"]
+
+    cur = db_conn.cursor()
+    cur.execute("SELECT userid FROM appuser WHERE (email = %s)", targetemail)
+    targetid = cur.fetchall()
+    cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid))
+    cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid, sourceid))
+
+    db_conn.commit()
+    cur.close()
+
+    return Response(status=201)
 
 
 @application.route('/user', methods=["POST"])
