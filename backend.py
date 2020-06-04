@@ -39,7 +39,8 @@ def add_friends():
     targetemail = request.get_json()["target_email"]
 
     cur = db_conn.cursor()
-
+    print(sourceid)
+    print(targetemail)
     cur.execute("SELECT count(*) FROM appuser WHERE (email = %s)", (targetemail))
     count = [item[0] for item in cur.fetchall()]
 
