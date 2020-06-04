@@ -3,6 +3,7 @@ import psycopg2
 import os
 from flask import jsonify
 import json
+
 import s3
 
 application = Flask(__name__)
@@ -12,7 +13,7 @@ db_conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
 @application.route('/friends/<userid>')
 def get_friends(userid):
     cur = db_conn.cursor()
-    # posible bug if queries dont return same order
+    # TODO: one query should be enough? Just iterate over list of tuples
     cur.execute("SELECT (name) FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s))", (userid,) )
     names = [item[0] for item in cur.fetchall()]
     cur.execute("SELECT (userid) FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s))", (userid,) )
@@ -21,15 +22,16 @@ def get_friends(userid):
     cur.close()
     return jsonify(create_dict(names, ids))
 
+
 def create_dict(names, ids):
     lists = []
     length = len(names)
     for i in range(length):
-        dict = {
-        "id": ids[i],
-        "name": names[i],
+        result = {
+            "id": ids[i],
+            "name": names[i],
         }
-        lists.append(dict)
+        lists.append(result)
     return lists
 
 
@@ -86,15 +88,18 @@ def send():
     cur = db_conn.cursor()
     cur.execute("SELECT s3_key FROM friend_challenges ORDER BY s3_key DESC LIMIT 1")
     table_key = cur.fetchone()
-    print(table_key)
     if table_key is None:
         key = 0
     else:
         key = table_key[0] + 1
-    print(key)
 
     file = request.files["file"]
-    s3.upload_file_obj(file, str(key))
+    # TODO: avoid that?)
+    filename = '{}.mp4'.format(key)
+    file.save(filename)
+    print(filename)
+    s3.upload_file(filename, str(key))
+    os.remove(filename)
 
     d = json.loads(request.form['json'])
     user_id = d["user_id"]
@@ -112,3 +117,21 @@ def send():
         db_conn.commit()
     cur.close()
     return Response(status=201)
+
+# Maybe we shouldn't expose s3_key like that, suffices for now
+@application.route('/open/<userid>/<friendid>', methods=["GET"])
+def open_challenge(userid, friendid):
+    cur = db_conn.cursor()
+    cur.execute("SELECT friendsid FROM friends WHERE sourceid = %s AND targetid = %s",
+                (userid, friendid))
+    friend_id = cur.fetchone()[0]
+    cur.execute("SELECT metadata, s3_key FROM friend_challenges WHERE friendsid = %s ORDER BY time DESC LIMIT 1", (friend_id,))
+    res = cur.fetchone()
+    metadata = res[0]
+    key = res[1]
+
+    cur.close()
+    return jsonify({
+        "metadata": metadata,
+        "key": key}
+    )
