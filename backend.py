@@ -41,13 +41,13 @@ def add_friends():
     cur = db_conn.cursor()
     print(sourceid)
     print(targetemail)
-    cur.execute("SELECT count(*) FROM appuser WHERE (email = %s)", (targetemail))
+    cur.execute("SELECT count(*) FROM appuser WHERE (email = %s)", (targetemail,))
     count = [item[0] for item in cur.fetchall()]
 
     if (count[0] != 1):
         return Response(status=400)
     else:
-        cur.execute("SELECT userid FROM appuser WHERE (email = %s)", targetemail)
+        cur.execute("SELECT userid FROM appuser WHERE (email = %s)", (targetemail,))
         targetid = cur.fetchall()
         cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid))
         cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid, sourceid))
