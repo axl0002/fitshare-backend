@@ -50,8 +50,8 @@ def add_friends():
         cur.execute("SELECT userid FROM appuser WHERE (email = %s)", (targetemail,))
         targetid = [item[0] for item in cur.fetchall()]
         print(targetid[0])
-        cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid))
-        cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid, sourceid))
+        cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid[0]))
+        cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid[0], sourceid))
 
         db_conn.commit()
         cur.close()
