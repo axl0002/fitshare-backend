@@ -41,22 +41,31 @@ def add_friends():
     cur = db_conn.cursor()
     print(sourceid)
     print(targetemail)
-    cur.execute("SELECT count(*) FROM appuser WHERE (email = %s)", (targetemail,))
+    cur.execute("SELECT COUNT(*) FROM appuser WHERE (email = %s)", (targetemail,))
     count = [item[0] for item in cur.fetchall()]
 
     if (count[0] != 1):
+        cur.close()
         return Response(status=400)
     else:
         cur.execute("SELECT userid FROM appuser WHERE (email = %s)", (targetemail,))
-        targetid = [item[0] for item in cur.fetchall()]
-        print(targetid[0])
-        cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid[0]))
-        cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid[0], sourceid))
+        target = [item[0] for item in cur.fetchall()]
+        print(target[0])
+        targetid = target[0]
+        cur.execute("SELECT COUNT(*) FROM friends WHERE (sourceid = %s and targetid = %s)", (sourceid, targetid))
+        cnt = [item[0] for item in cur.fetchall()]
+        print(cnt)
+        if (cnt[0] != 0):
+            cur.close()
+            return Response(status=400)
+        else:
+            cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid))
+            cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid, sourceid))
 
-        db_conn.commit()
-        cur.close()
+            db_conn.commit()
+            cur.close()
 
-        return Response(status=201)
+            return Response(status=201)
 
 
 @application.route('/user', methods=["POST"])
