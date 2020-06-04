@@ -40,7 +40,7 @@ def add_friends():
 
     cur = db_conn.cursor()
 
-    cur.execute("SELECT count(*) FROM appuser WHERE (email = '%')", (targetemail))
+    cur.execute("SELECT count(*) FROM appuser WHERE (email = s%)", (targetemail))
     count = [item[0] for item in cur.fetchall()]
 
     if (count[0] != 1):
