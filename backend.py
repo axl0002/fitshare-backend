@@ -48,10 +48,8 @@ def add_friends():
         return Response(status=400)
     else:
         cur.execute("SELECT userid FROM appuser WHERE (email = %s)", (targetemail,))
-        targetid = cur.fetchall()
-        print(targetid)
-        t = [item[0] for item in cur.fetchall()]
-        print(t[0])
+        targetid = [item[0] for item in cur.fetchall()]
+        print(targetid[0])
         cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (sourceid, targetid))
         cur.execute("INSERT INTO friends (sourceid, targetid) VALUES (%s, %s)", (targetid, sourceid))
 
