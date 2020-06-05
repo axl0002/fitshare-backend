@@ -13,23 +13,62 @@ db_conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
 @application.route('/friends/<userid>')
 def get_friends(userid):
     cur = db_conn.cursor()
-    # TODO: one query should be enough? Just iterate over list of tuples
-    cur.execute("SELECT (name) FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s))", (userid,) )
-    names = [item[0] for item in cur.fetchall()]
-    cur.execute("SELECT (userid) FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s))", (userid,) )
-    ids = [item[0] for item in cur.fetchall()]
-
+    cur.execute("SELECT userid, name FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s))", (userid,) )
+    friends = cur.fetchall()
+    response = []
+    for fr in friends:
+        result = dict()
+        result["id"] = fr[0]
+        result["name"] = fr[1]
+        cur.execute("SELECT is_complete, time FROM friend_challenges "
+                    "LEFT JOIN friends on friends.friendsid = friend_challenges.friendsid "
+                    "WHERE sourceid = %s AND targetid = %s "
+                    "ORDER BY time DESC "
+                    "LIMIT 1", (userid, fr[0]))
+        last_snap_from = cur.fetchone()
+        cur.execute("SELECT is_complete, time FROM friend_challenges "
+                    "LEFT JOIN friends on friends.friendsid = friend_challenges.friendsid "
+                    "WHERE sourceid = %s AND targetid = %s "
+                    "ORDER BY time DESC "
+                    "LIMIT 1", (fr[0], userid))
+        last_snap_to = cur.fetchone()
+        result["last_snap_from"] = last_snap_from
+        result["last_snap_to"] = last_snap_to
+        if last_snap_from is None and last_snap_to is None:
+            result["status"] = "NEW"
+        elif last_snap_from is None:
+            if last_snap_to[0]:  # if is_complete
+                result["status"] = "OPENED"
+            else:
+                result["status"] = "SENT"
+        elif last_snap_to is None:
+            if last_snap_from[0]:  # if is_complete
+                result["status"] = "COMPLETE"
+            else:
+                result["status"] = "RECEIVED"
+        else:
+            if last_snap_from[1] > last_snap_to[1]:
+                if last_snap_from[0]:  # if is_complete
+                    result["status"] = "COMPLETE"
+                else:
+                    result["status"] = "RECEIVED"
+            else:
+                if last_snap_to[0]:  # if is_complete
+                    result["status"] = "OPENED"
+                else:
+                    result["status"] = "SENT"
+        response.append(result)
     cur.close()
-    return jsonify(create_dict(names, ids))
+    return jsonify(response)
 
 
-def create_dict(names, ids):
+def create_dict(friends):
     lists = []
-    length = len(names)
+    length = len(friends)
     for i in range(length):
         result = {
-            "id": ids[i],
-            "name": names[i],
+            "id": friends[i][0],
+            "name": friends[i][1],
         }
         lists.append(result)
     return lists
