@@ -35,7 +35,7 @@ def get_friends(userid):
         result["last_snap_from"] = last_snap_from
         result["last_snap_to"] = last_snap_to
         if last_snap_from is None and last_snap_to is None:
-            result["status"] = "NEW"
+            result["status"] = "NEW FRIEND"
         elif last_snap_from is None:
             if last_snap_to[0]:  # if is_complete
                 result["status"] = "OPENED"
@@ -45,13 +45,13 @@ def get_friends(userid):
             if last_snap_from[0]:  # if is_complete
                 result["status"] = "COMPLETE"
             else:
-                result["status"] = "RECEIVED"
+                result["status"] = "NEW"
         else:
             if last_snap_from[1] > last_snap_to[1]:
                 if last_snap_from[0]:  # if is_complete
                     result["status"] = "COMPLETE"
                 else:
-                    result["status"] = "RECEIVED"
+                    result["status"] = "NEW"
             else:
                 if last_snap_to[0]:  # if is_complete
                     result["status"] = "OPENED"
@@ -164,10 +164,23 @@ def open_challenge(userid, friendid):
     cur.execute("SELECT friendsid FROM friends WHERE sourceid = %s AND targetid = %s",
                 (userid, friendid))
     friend_id = cur.fetchone()[0]
-    cur.execute("SELECT metadata, s3_key FROM friend_challenges WHERE friendsid = %s ORDER BY time DESC LIMIT 1", (friend_id,))
+    cur.execute("SELECT metadata, s3_key, challengeid FROM friend_challenges WHERE friendsid = %s ORDER BY time DESC LIMIT 1", (friend_id,))
+    # TODO: None checks!
     res = cur.fetchone()
     metadata = res[0]
     key = res[1]
+    challenge_id1 = res[2]
+
+    cur.execute("SELECT friendsid FROM friends WHERE sourceid = %s AND targetid = %s",
+                (friendid, userid))
+    friend_id2 = cur.fetchone()[0]
+    cur.execute(
+        "SELECT challengeid FROM friend_challenges WHERE friendsid = %s ORDER BY time DESC LIMIT 1",
+        (friend_id2,))
+    challenge_id2 = cur.fetchone()[0]
+
+    cur.execute("UPDATE friend_challenges SET is_complete = true WHERE challengeid IN (%s, %s)",
+                (challenge_id1, challenge_id2))
 
     cur.close()
     return jsonify({
