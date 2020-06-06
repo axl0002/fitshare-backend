@@ -13,6 +13,25 @@ db_conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
 @application.route('/friends/<userid>')
 def get_friends(userid):
     cur = db_conn.cursor()
+
+    cur.execute("WITH RECURSIVE cte "
+                "AS ( "
+                "SELECT friendsid, time, 1 as cnt "
+                "FROM friend_challenges "
+                "WHERE extract(epoch from now()) - extract(epoch from time) < 86400 "
+                "UNION ALL "
+                "SELECT a.friendsid, a.time, c.cnt + 1 "
+                "FROM friend_challenges a "
+                "INNER JOIN cte c ON a.friendsid = c.friendsid AND a.time = c.time - interval '1' day "
+                ") "
+                "SELECT friendsid, MAX(cnt) AS most_consecutive "
+                "FROM cte "
+                "GROUP BY friendsid")
+    streaks = cur.fetchall()
+    streaks_dict = dict()
+    for streak in streaks:
+        streaks_dict[streak[0]] = streak[1]
+
     cur.execute("SELECT userid, name FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s))", (userid,) )
     friends = cur.fetchall()
     response = []
@@ -20,33 +39,51 @@ def get_friends(userid):
         result = dict()
         result["id"] = fr[0]
         result["name"] = fr[1]
-        cur.execute("SELECT is_complete, time FROM friend_challenges "
+        cur.execute("SELECT is_complete, time, friend_challenges.friendsid FROM friend_challenges "
                     "LEFT JOIN friends on friends.friendsid = friend_challenges.friendsid "
                     "WHERE sourceid = %s AND targetid = %s "
                     "ORDER BY time DESC "
                     "LIMIT 1", (userid, fr[0]))
         last_snap_from = cur.fetchone()
-        cur.execute("SELECT is_complete, time FROM friend_challenges "
+        cur.execute("SELECT is_complete, time, friend_challenges.friendsid FROM friend_challenges "
                     "LEFT JOIN friends on friends.friendsid = friend_challenges.friendsid "
                     "WHERE sourceid = %s AND targetid = %s "
                     "ORDER BY time DESC "
                     "LIMIT 1", (fr[0], userid))
         last_snap_to = cur.fetchone()
-        result["last_snap_from"] = last_snap_from
-        result["last_snap_to"] = last_snap_to
         if last_snap_from is None and last_snap_to is None:
             result["status"] = "NEW FRIEND"
+            result["streak_to"] = 0
+            result["streak_from"] = 0
         elif last_snap_from is None:
+            result["streak_from"] = 0
+            if last_snap_to[2] in streaks_dict.keys():
+                result["streak_to"] = streaks_dict[last_snap_to[2]]
+            else:
+                result["streak_to"] = 0
             if last_snap_to[0]:  # if is_complete
                 result["status"] = "OPENED"
             else:
                 result["status"] = "SENT"
         elif last_snap_to is None:
+            result["streak_to"] = 0
+            if last_snap_from[2] in streaks_dict.keys():
+                result["streak_from"] = streaks_dict[last_snap_from[2]]
+            else:
+                result["streak_from"] = 0
             if last_snap_from[0]:  # if is_complete
                 result["status"] = "COMPLETE"
             else:
                 result["status"] = "NEW"
         else:
+            if last_snap_from[2] in streaks_dict.keys():
+                result["streak_from"] = streaks_dict[last_snap_from[2]]
+            else:
+                result["streak_from"] = 0
+            if last_snap_to[2] in streaks_dict.keys():
+                result["streak_to"] = streaks_dict[last_snap_to[2]]
+            else:
+                result["streak_to"] = 0
             if last_snap_from[1] > last_snap_to[1]:
                 if last_snap_from[0]:  # if is_complete
                     result["status"] = "COMPLETE"
