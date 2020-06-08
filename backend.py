@@ -3,6 +3,7 @@ import psycopg2
 import os
 from flask import jsonify
 import json
+from datetime import datetime
 
 import s3
 
@@ -76,7 +77,7 @@ def get_friends(userid):
         status, streak, time = process_status_and_streak(streaks_dict[fr[0]]["from"], streaks_dict[fr[0]]["to"])
         result["streak"] = streak
         result["status"] = status
-        result["time"] = time
+        result["time"] = time.strftime("%d-%m-%y")
         response.append(result)
 
     cur.close()
