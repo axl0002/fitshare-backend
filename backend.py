@@ -13,65 +13,100 @@ db_conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
 @application.route('/friends/<userid>')
 def get_friends(userid):
     cur = db_conn.cursor()
-    cur.execute("SELECT userid, name FROM appuser WHERE userid IN (SELECT targetid FROM friends WHERE (sourceid = %s))", (userid,) )
+
+    cur.execute("SELECT DISTINCT userid, name "
+                "FROM appuser "
+                "LEFT JOIN friends "
+                "   ON userid = targetid "
+                "WHERE userid IN ( "
+                "   SELECT targetid "
+                "   FROM friends "
+                "   WHERE sourceid = %s "
+                ")", (userid,))
     friends = cur.fetchall()
+    friends_ids = tuple([friend[0] for friend in friends])
+
+    cur.execute("WITH streaks AS ( "
+                "   WITH RECURSIVE cte AS ("
+                "       SELECT friendsid, time, 1 as cnt "
+                "       FROM friend_challenges "
+                "       WHERE EXTRACT(epoch from now()) - EXTRACT(epoch from time) < 86400 "
+                "       UNION ALL "
+                "       SELECT a.friendsid, a.time, c.cnt + 1 "
+                "       FROM friend_challenges a "
+                "       INNER JOIN cte c ON a.friendsid = c.friendsid AND a.time = c.time - interval '1' day "
+                "   ) "
+                "   SELECT friendsid, MAX(cnt) AS streak "
+                "   FROM cte "
+                "   GROUP BY friendsid "
+                ") "
+                "SELECT t1.friendsid, sourceid, targetid, is_complete, time, coalesce(streak, 0) as streak "
+                "FROM friend_challenges AS t1 "
+                "RIGHT JOIN friends ON friends.friendsid = t1.friendsid "
+                "LEFT JOIN streaks ON streaks.friendsid =  t1.friendsid "
+                "WHERE (sourceid = %s AND targetid IN %s "
+                "OR sourceid IN %s AND targetid = %s ) "
+                "AND t1.time = (SELECT MAX(t2.time) FROM friend_challenges AS t2 WHERE t2.friendsid = t1.friendsid);",
+                (userid, friends_ids, friends_ids, userid))
+    streaks = cur.fetchall()
+    response = []
+
+    streaks_dict = dict()
+    for id in friends_ids:
+        streaks_dict[id] = dict()
+        streaks_dict[id]["from"] = dict()
+        streaks_dict[id]["to"] = dict()
+
+    for item in streaks:
+        if item[1] == userid:  # sourceid = userid
+            key = item[2]
+            where = "from"
+        else:
+            key = item[1]
+            where = "to"
+        streaks_dict[key][where]["is_complete"] = item[3]
+        streaks_dict[key][where]["time"] = item[4]
+        streaks_dict[key][where]["streak"] = item[5]
+
     response = []
     for fr in friends:
         result = dict()
         result["id"] = fr[0]
         result["name"] = fr[1]
-        cur.execute("SELECT is_complete, time FROM friend_challenges "
-                    "LEFT JOIN friends on friends.friendsid = friend_challenges.friendsid "
-                    "WHERE sourceid = %s AND targetid = %s "
-                    "ORDER BY time DESC "
-                    "LIMIT 1", (userid, fr[0]))
-        last_snap_from = cur.fetchone()
-        cur.execute("SELECT is_complete, time FROM friend_challenges "
-                    "LEFT JOIN friends on friends.friendsid = friend_challenges.friendsid "
-                    "WHERE sourceid = %s AND targetid = %s "
-                    "ORDER BY time DESC "
-                    "LIMIT 1", (fr[0], userid))
-        last_snap_to = cur.fetchone()
-        result["last_snap_from"] = last_snap_from
-        result["last_snap_to"] = last_snap_to
-        if last_snap_from is None and last_snap_to is None:
-            result["status"] = "NEW FRIEND"
-        elif last_snap_from is None:
-            if last_snap_to[0]:  # if is_complete
-                result["status"] = "OPENED"
-            else:
-                result["status"] = "SENT"
-        elif last_snap_to is None:
-            if last_snap_from[0]:  # if is_complete
-                result["status"] = "COMPLETE"
-            else:
-                result["status"] = "NEW"
-        else:
-            if last_snap_from[1] > last_snap_to[1]:
-                if last_snap_from[0]:  # if is_complete
-                    result["status"] = "COMPLETE"
-                else:
-                    result["status"] = "NEW"
-            else:
-                if last_snap_to[0]:  # if is_complete
-                    result["status"] = "OPENED"
-                else:
-                    result["status"] = "SENT"
+        status, streak, time = process_status_and_streak(streaks_dict[fr[0]]["from"], streaks_dict[fr[0]]["to"])
+        result["streak"] = streak
+        result["status"] = status
+        result["time"] = time
         response.append(result)
+
     cur.close()
     return jsonify(response)
 
 
-def create_dict(friends):
-    lists = []
-    length = len(friends)
-    for i in range(length):
-        result = {
-            "id": friends[i][0],
-            "name": friends[i][1],
-        }
-        lists.append(result)
-    return lists
+def process_status_and_streak(from_dict, to_dict):
+    if not from_dict and not to_dict:
+        return "NEW FRIEND", 0, None
+    elif not from_dict:
+        if to_dict["is_complete"]:
+            return "OPENED", to_dict["streak"], to_dict["time"]
+        else:
+            return "RECEIVED", to_dict["streak"], to_dict["time"]
+    elif not to_dict:
+        if from_dict["is_complete"]:
+            return "COMPLETED", from_dict["streak"], from_dict["time"]
+        else:
+            return "SENT", from_dict["streak"], from_dict["time"]
+    else:
+        if from_dict["time"] >  to_dict["time"]:
+            if from_dict["is_complete"]:
+                return "COMPLETED", from_dict["streak"], from_dict["time"]
+            else:
+                return "SENT", from_dict["streak"], from_dict["time"]
+        else:
+            if to_dict["is_complete"]:
+                return "OPENED", to_dict["streak"], to_dict["time"]
+            else:
+                return "RECEIVED", to_dict["streak"], to_dict["time"]
 
 
 @application.route('/add', methods=["POST"])
