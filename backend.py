@@ -223,3 +223,72 @@ def open_challenge(userid, friendid):
         "metadata": metadata,
         "key": key}
     )
+
+@application.route('/data/<userid>', methods=["GET"])
+def get_profile_data(userid):
+    cur = db_conn.cursor()
+    total_challenges_sent_sql = """
+    select
+        Count(*)
+    from
+        friend_challenges
+    where
+        friendsid in 
+        (select
+            friendsid
+        from
+            friends
+        where
+            sourceid=%s);
+    """
+
+    total_challenges_done_sql = """
+    select
+        count(*)
+    from
+        friend_challenges
+    where
+        is_complete=TRUE
+        and
+        friendsid in
+            (select
+                friendsid
+            from
+                friends
+            where
+                targetid=%s);
+    """
+
+    activity_by_day = """
+    select
+        friend_challenges.time::date,
+        count(*)
+    from
+        friend_challenges
+    where
+        friendsid in
+        (select
+            friendsid
+        from
+            friends
+        where
+            sourceid=%s)
+    group by 1;
+    """
+
+    cur.execute(total_challenges_sent_sql, (userid,))
+    challenges_sent = cur.fetchone()
+
+    cur.execute(total_challenges_done_sql, (userid,))
+    challenges_done = cur.fetchone()
+
+    cur.execute(activity_by_day, (userid,))
+    challenges_by_day = cur.fetchall()
+
+    cur.close()
+    resp = {
+        "challenges_sent": challenges_sent,
+        "challenges_done": challenges_done,
+        "challenges_by_day": challenges_by_day,
+    }
+    return jsonify(resp)
