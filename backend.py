@@ -288,8 +288,8 @@ def get_profile_data(userid):
 
     cur.close()
     resp = {
-        "challenges_sent": challenges_sent[0],
-        "challenges_done": challenges_done[0],
-        "challenges_by_day": challenges_by_day,
+        "challengesSent": challenges_sent[0],
+        "challengesDone": challenges_done[0],
+        "challengesByDay": challenges_by_day,
     }
     return jsonify(resp)
