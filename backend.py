@@ -273,7 +273,8 @@ def get_profile_data(userid):
             friends
         where
             sourceid=%s)
-    group by 1;
+    group by 1
+    order by 1;
     """
 
     cur.execute(total_challenges_sent_sql, (userid,))
@@ -283,12 +284,12 @@ def get_profile_data(userid):
     challenges_done = cur.fetchone()
 
     cur.execute(activity_by_day, (userid,))
-    challenges_by_day = cur.fetchall()
+    challenges_by_day = {str(val[0]): val[1] for val in cur.fetchall()}
 
     cur.close()
     resp = {
-        "challenges_sent": challenges_sent,
-        "challenges_done": challenges_done,
+        "challenges_sent": challenges_sent[0],
+        "challenges_done": challenges_done[0],
         "challenges_by_day": challenges_by_day,
     }
     return jsonify(resp)
