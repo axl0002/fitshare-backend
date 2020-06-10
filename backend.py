@@ -11,6 +11,34 @@ application = Flask(__name__)
 db_conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
 
 
+@application.route('/join/<userid>/<groupid>')
+def join_channel(userid, groupid):
+    cur = db_conn.cursor()
+    cur.execute("INSERT INTO subscriptions (userid, group_id) VALUES (%s, %s)", (userid, groupid))
+    cur.close()
+    return Response(status=200)
+
+
+@application.route('/most-popular-channels')
+def most_popular_channels():
+    cur = db_conn.cursor()
+    cur.execute("SELECT group_name, group_description, COUNT(*) "
+                "FROM groups AS g "
+                "LEFT JOIN subscriptions AS s ON g.group_id = s.group_id "
+                "GROUP BY group_name, group_description "
+                "ORDER BY COUNT(*) DESC")
+    cur.close()
+    return Response(status=200)
+
+
+@application.route('/leave/<userid>/<groupid>')
+def leave_channel(userid, groupid):
+    cur = db_conn.cursor()
+    cur.execute("DELETE FROM subscriptions WHERE  userid = %s AND group_id = %s)", (userid, groupid))
+    cur.close()
+    return Response(status=204)
+
+
 @application.route('/friends/<userid>')
 def get_friends(userid):
     cur = db_conn.cursor()
@@ -50,7 +78,6 @@ def get_friends(userid):
                 "AND t1.time = (SELECT MAX(t2.time) FROM friend_challenges AS t2 WHERE t2.friendsid = t1.friendsid);",
                 (userid, friends_ids, friends_ids, userid))
     streaks = cur.fetchall()
-    response = []
 
     streaks_dict = dict()
     for id in friends_ids:
