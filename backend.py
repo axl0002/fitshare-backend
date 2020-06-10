@@ -38,7 +38,7 @@ def channels(userid):
     cur = db_conn.cursor()
     cur.execute("SELECT g.group_id, group_name, group_description, COUNT(userid) "
                 "FROM ( "
-                "   SELECT group_id, group_name, group_description "
+                "   SELECT g1.group_id, group_name, group_description "
                 "   FROM groups AS g1"
                 "   RIGHT JOIN subscriptions AS s1 ON g1.group_id = s1.group_id "
                 "   WHERE s1.userid = %s"
