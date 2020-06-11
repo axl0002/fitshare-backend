@@ -275,7 +275,7 @@ def open_challenge(userid, friendid):
 
     cur.execute("UPDATE friend_challenges SET is_complete = true WHERE challengeid IN (%s, %s)",
                 (challenge_id1, challenge_id2))
-
+    db_conn.commit()
     cur.close()
     return jsonify({
         "metadata": metadata,
