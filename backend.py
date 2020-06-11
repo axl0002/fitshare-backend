@@ -11,53 +11,60 @@ application = Flask(__name__)
 db_conn = psycopg2.connect(os.environ['DATABASE_URL'], sslmode='require')
 
 
-@application.route('/join/<userid>/<groupid>')
-def join_channel(userid, groupid):
+@application.route('/join', methods=["PUT"])
+def join_channel():
+    userid = request.get_json()["userid"]
+    group_id = request.get_json()["groupid"]
     cur = db_conn.cursor()
-    cur.execute("INSERT INTO subscriptions (userid, group_id) VALUES (%s, %s)", (userid, groupid))
+    cur.execute("INSERT INTO subscriptions (userid, group_id) VALUES (%s, %s)", (userid, int(group_id)))
     cur.close()
-    return Response(status=200)
+    return Response(status=201)
 
 
-@application.route('/channels/popular')
-def most_popular_channels():
+@application.route('/leave', methods=["DELETE"])
+def leave_channel():
+    userid = request.get_json()["userid"]
+    group_id = request.get_json()["groupid"]
     cur = db_conn.cursor()
-    cur.execute("SELECT g.group_id, group_name, group_description, group_avatar_name, COUNT(userid) "
-                "FROM groups AS g "
-                "LEFT JOIN subscriptions AS s ON g.group_id = s.group_id "
-                "GROUP BY g.group_id, group_name, group_description, group_avatar_name "
-                "ORDER BY COUNT(userid) DESC")
-    data = cur.fetchall()
-    response = [{"id": d[0], "name": d[1], "description": d[2], "avatar": d[3], "count": d[4]} for d in data]
+    cur.execute("DELETE FROM subscriptions WHERE  userid = %s AND group_id = %s", (userid, int(group_id)))
     cur.close()
-    return jsonify(response)
+    return Response(status=204)
 
 
 @application.route('/channels/<userid>')
 def channels(userid):
     cur = db_conn.cursor()
     cur.execute("SELECT g.group_id, group_name, group_description, group_avatar_name, COUNT(userid) "
-                "FROM ( "
-                "   SELECT g1.group_id, group_name, group_description, group_avatar_name"
-                "   FROM groups AS g1"
-                "   RIGHT JOIN subscriptions AS s1 ON g1.group_id = s1.group_id "
-                "   WHERE s1.userid = %s"
-                ") AS g "
+                "FROM groups AS g "
                 "LEFT JOIN subscriptions AS s ON g.group_id = s.group_id "
+                "WHERE g.group_id IN ( "
+                "SELECT group_id "
+                "   FROM subscriptions "
+                "   WHERE userid = %s"
+                ") "
                 "GROUP BY g.group_id, group_name, group_description, group_avatar_name "
                 "ORDER BY COUNT(userid) DESC", (userid,))
-    data = cur.fetchall()
-    response = [{"id": d[0], "name": d[1], "description": d[2], "avatar": d[3], "count": d[4]} for d in data]
+    user_channels = cur.fetchall()
+
+    cur.execute("SELECT g.group_id, group_name, group_description, group_avatar_name, COUNT(userid) "
+                "FROM groups AS g "
+                "LEFT JOIN subscriptions AS s ON g.group_id = s.group_id "
+                "WHERE g.group_id NOT IN ( "
+                "SELECT group_id "
+                "   FROM subscriptions "
+                "   WHERE userid = %s"
+                ") "
+                "GROUP BY g.group_id, group_name, group_description, group_avatar_name "
+                "ORDER BY COUNT(userid) DESC", (userid,))
+    other = cur.fetchall()
+
+    response = {"user_channels":
+                [{"id": d[0], "name": d[1], "description": d[2], "avatar": d[3], "count": d[4]} for d in
+                    user_channels],
+                "other": [{"id": d[0], "name": d[1], "description": d[2], "avatar": d[3], "count": d[4]} for d in other]
+                }
     cur.close()
     return jsonify(response)
-
-
-@application.route('/leave/<userid>/<groupid>')
-def leave_channel(userid, groupid):
-    cur = db_conn.cursor()
-    cur.execute("DELETE FROM subscriptions WHERE  userid = %s AND group_id = %s)", (userid, groupid))
-    cur.close()
-    return Response(status=204)
 
 
 @application.route('/friends/<userid>')
@@ -146,7 +153,7 @@ def process_status_and_streak(from_dict, to_dict):
         else:
             return "SENT", from_dict["streak"], from_dict["time"]
     else:
-        if from_dict["time"] >  to_dict["time"]:
+        if from_dict["time"] > to_dict["time"]:
             if from_dict["is_complete"]:
                 return "COMPLETED", from_dict["streak"], from_dict["time"]
             else:
@@ -241,6 +248,7 @@ def send():
     cur.close()
     return Response(status=201)
 
+
 # Maybe we shouldn't expose s3_key like that, suffices for now
 @application.route('/open/<userid>/<friendid>', methods=["GET"])
 def open_challenge(userid, friendid):
@@ -248,7 +256,9 @@ def open_challenge(userid, friendid):
     cur.execute("SELECT friendsid FROM friends WHERE sourceid = %s AND targetid = %s",
                 (userid, friendid))
     friend_id = cur.fetchone()[0]
-    cur.execute("SELECT metadata, s3_key, challengeid FROM friend_challenges WHERE friendsid = %s ORDER BY time DESC LIMIT 1", (friend_id,))
+    cur.execute(
+        "SELECT metadata, s3_key, challengeid FROM friend_challenges WHERE friendsid = %s ORDER BY time DESC LIMIT 1",
+        (friend_id,))
     # TODO: None checks!
     res = cur.fetchone()
     metadata = res[0]
@@ -271,6 +281,7 @@ def open_challenge(userid, friendid):
         "metadata": metadata,
         "key": key}
     )
+
 
 @application.route('/data/<userid>', methods=["GET"])
 def get_profile_data(userid):
