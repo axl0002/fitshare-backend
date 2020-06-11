@@ -25,7 +25,7 @@ def most_popular_channels():
     cur.execute("SELECT g.group_id, group_name, group_description, group_avatar_name, COUNT(userid) "
                 "FROM groups AS g "
                 "LEFT JOIN subscriptions AS s ON g.group_id = s.group_id "
-                "GROUP BY g.group_id, group_name, group_description "
+                "GROUP BY g.group_id, group_name, group_description, group_avatar_name "
                 "ORDER BY COUNT(userid) DESC")
     data = cur.fetchall()
     response = [{"id": d[0], "name": d[1], "description": d[2], "avatar": d[3], "count": d[4]} for d in data]
@@ -44,7 +44,7 @@ def channels(userid):
                 "   WHERE s1.userid = %s"
                 ") AS g "
                 "LEFT JOIN subscriptions AS s ON g.group_id = s.group_id "
-                "GROUP BY g.group_id, group_name, group_description "
+                "GROUP BY g.group_id, group_name, group_description, group_avatar_name "
                 "ORDER BY COUNT(userid) DESC", (userid,))
     data = cur.fetchall()
     response = [{"id": d[0], "name": d[1], "description": d[2], "avatar": d[3], "count": d[4]} for d in data]
