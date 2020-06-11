@@ -22,13 +22,13 @@ def join_channel(userid, groupid):
 @application.route('/channels/popular')
 def most_popular_channels():
     cur = db_conn.cursor()
-    cur.execute("SELECT g.group_id, group_name, group_description, COUNT(userid) "
+    cur.execute("SELECT g.group_id, group_name, group_description, group_avatar_name, COUNT(userid) "
                 "FROM groups AS g "
                 "LEFT JOIN subscriptions AS s ON g.group_id = s.group_id "
                 "GROUP BY g.group_id, group_name, group_description "
                 "ORDER BY COUNT(userid) DESC")
     data = cur.fetchall()
-    response = [{"id": d[0], "name": d[1], "description": d[2], "count": d[3]} for d in data]
+    response = [{"id": d[0], "name": d[1], "description": d[2], "avatar": d[3], "count": d[4]} for d in data]
     cur.close()
     return jsonify(response)
 
@@ -36,7 +36,7 @@ def most_popular_channels():
 @application.route('/channels/<userid>')
 def channels(userid):
     cur = db_conn.cursor()
-    cur.execute("SELECT g.group_id, group_name, group_description, COUNT(userid) "
+    cur.execute("SELECT g.group_id, group_name, group_description, group_avatar_name, COUNT(userid) "
                 "FROM ( "
                 "   SELECT g1.group_id, group_name, group_description "
                 "   FROM groups AS g1"
@@ -47,7 +47,7 @@ def channels(userid):
                 "GROUP BY g.group_id, group_name, group_description "
                 "ORDER BY COUNT(userid) DESC", (userid,))
     data = cur.fetchall()
-    response = [{"id": d[0], "name": d[1], "description": d[2], "count": d[3]} for d in data]
+    response = [{"id": d[0], "name": d[1], "description": d[2], "avatar": d[3], "count": d[4]} for d in data]
     cur.close()
     return jsonify(response)
 
