@@ -132,7 +132,10 @@ def get_friends(userid):
         status, streak, time = process_status_and_streak(streaks_dict[fr[0]]["from"], streaks_dict[fr[0]]["to"])
         result["streak"] = streak
         result["status"] = status
-        result["time"] = time.strftime("%d-%m-%y")
+        if time is None:
+            result["time"] = time
+        else:
+            result["time"] = time.strftime("%d-%m-%y")
         response.append(result)
 
     cur.close()
