@@ -152,13 +152,13 @@ def process_status_and_streak(from_dict, to_dict):
             return "NEW", to_dict["streak"], to_dict["time"]
     elif not to_dict:
         if from_dict["is_complete"]:
-            return "COMPLETED", from_dict["streak"], from_dict["time"]
+            return "COMPLETE", from_dict["streak"], from_dict["time"]
         else:
             return "SENT", from_dict["streak"], from_dict["time"]
     else:
         if from_dict["time"] > to_dict["time"]:
             if from_dict["is_complete"]:
-                return "COMPLETED", from_dict["streak"], from_dict["time"]
+                return "COMPLETE", from_dict["streak"], from_dict["time"]
             else:
                 return "SENT", from_dict["streak"], from_dict["time"]
         else:
