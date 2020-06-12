@@ -228,7 +228,9 @@ def send():
     filename = '{}.mp4'.format(key)
     file.save(filename)
     print(filename)
-    s3.upload_file(filename, str(key))
+    with open(filename, 'rb') as video:
+        s3.upload_file_obj(video, filename)
+
     os.remove(filename)
 
     d = json.loads(request.form['json'])

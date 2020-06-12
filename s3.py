@@ -29,6 +29,16 @@ def upload_file(filename, key):
     return True
 
 
+def upload_file_obj(fileobj, key):
+    s3_client = init()
+    try:
+        s3_client.upload_fileobj(fileobj, AWS_BUCKET_NAME, key)
+    except ClientError as e:
+        logging.error(e)
+        return False
+    return True
+
+
 def show_file(key):
     s3_client = init()
     try:
