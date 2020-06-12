@@ -149,7 +149,7 @@ def process_status_and_streak(from_dict, to_dict):
         if to_dict["is_complete"]:
             return "OPENED", to_dict["streak"], to_dict["time"]
         else:
-            return "RECEIVED", to_dict["streak"], to_dict["time"]
+            return "NEW", to_dict["streak"], to_dict["time"]
     elif not to_dict:
         if from_dict["is_complete"]:
             return "COMPLETED", from_dict["streak"], from_dict["time"]
@@ -165,7 +165,7 @@ def process_status_and_streak(from_dict, to_dict):
             if to_dict["is_complete"]:
                 return "OPENED", to_dict["streak"], to_dict["time"]
             else:
-                return "RECEIVED", to_dict["streak"], to_dict["time"]
+                return "NEW", to_dict["streak"], to_dict["time"]
 
 
 @application.route('/add', methods=["POST"])
