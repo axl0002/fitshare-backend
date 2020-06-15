@@ -17,6 +17,7 @@ def join_channel():
     group_id = request.get_json()["groupid"]
     cur = db_conn.cursor()
     cur.execute("INSERT INTO subscriptions (userid, group_id) VALUES (%s, %s)", (userid, int(group_id)))
+    db_conn.commit()
     cur.close()
     return Response(status=201)
 
@@ -27,6 +28,7 @@ def leave_channel():
     group_id = request.get_json()["groupid"]
     cur = db_conn.cursor()
     cur.execute("DELETE FROM subscriptions WHERE  userid = %s AND group_id = %s", (userid, int(group_id)))
+    db_conn.commit()
     cur.close()
     return Response(status=204)
 
