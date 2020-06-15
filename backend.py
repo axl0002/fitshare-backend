@@ -17,6 +17,7 @@ def join_channel():
     group_id = request.get_json()["groupid"]
     cur = db_conn.cursor()
     cur.execute("INSERT INTO subscriptions (userid, group_id) VALUES (%s, %s)", (userid, int(group_id)))
+    db_conn.commit()
     cur.close()
     return Response(status=201)
 
@@ -27,6 +28,7 @@ def leave_channel():
     group_id = request.get_json()["groupid"]
     cur = db_conn.cursor()
     cur.execute("DELETE FROM subscriptions WHERE  userid = %s AND group_id = %s", (userid, int(group_id)))
+    db_conn.commit()
     cur.close()
     return Response(status=204)
 
@@ -349,8 +351,11 @@ def get_profile_data(userid):
     cur.execute(total_challenges_done_sql, (userid,))
     challenges_done = cur.fetchone()
 
-    cur.execute(activity_by_day, (userid,))
-    challenges_by_day = {((str(val[0]))[-4:]): val[1] for val in cur.fetchall()}
+    if (challenges_sent[0]>0):
+        cur.execute(activity_by_day, (userid,))
+        challenges_by_day = {((str(val[0]))[-4:]): val[1] for val in cur.fetchall()}
+    else:
+        challenges_by_day = {}
 
     cur.close()
     resp = {
