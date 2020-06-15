@@ -70,16 +70,19 @@ def channels(userid):
 @application.route('/friends/<userid>')
 def get_friends(userid):
     cur = db_conn.cursor()
+    cur.execute("SELECT targetid "
+                "FROM friends "
+                "WHERE sourceid = %s ", (userid,))
+    friend_list = cur.fetchall()
+    print(friend_list)
+    if friend_list is None or not friend_list:
+        return jsonify([])
 
     cur.execute("SELECT DISTINCT userid, name "
                 "FROM appuser "
                 "LEFT JOIN friends "
                 "   ON userid = targetid "
-                "WHERE userid IN ( "
-                "   SELECT targetid "
-                "   FROM friends "
-                "   WHERE sourceid = %s "
-                ")", (userid,))
+                "WHERE userid IN %s", (tuple(friend_list),))
     friends = cur.fetchall()
     friends_ids = tuple([friend[0] for friend in friends])
 
