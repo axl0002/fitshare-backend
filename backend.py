@@ -349,7 +349,7 @@ def get_profile_data(userid):
     cur.execute(total_challenges_done_sql, (userid,))
     challenges_done = cur.fetchone()
 
-    if (challenges_sent>0):
+    if (challenges_sent[0]>0):
         cur.execute(activity_by_day, (userid,))
         challenges_by_day = {((str(val[0]))[-4:]): val[1] for val in cur.fetchall()}
     else:
